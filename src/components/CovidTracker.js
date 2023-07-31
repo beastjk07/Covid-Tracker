@@ -1,19 +1,24 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { stateAbbreviations } from "./data.js";
+import { stateAbbreviations, apiURL, getChartData } from "./utils.js";
 import { Chart as ChartJS } from "chart.js/auto";
+import { Form, Button } from "react-bootstrap";
 import { Line } from "react-chartjs-2";
 
 const CovidTracker = () => {
   const [data, setData] = useState([]);
+  const [days, setDays] = useState(10);
   const [selectedState, setSelectedState] = useState("az"); // Default state: Arizona
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(
-        `https://api.covidtracking.com/v1/states/${selectedState}/daily.json`
+      const response = await axios.get(apiURL(selectedState));
+      setData(
+        response.data.slice(
+          0,
+          days === undefined || days === null || days === 0 || !days ? 10 : days
+        )
       );
-      setData(response.data.slice(0, 10));
     } catch (error) {
       console.error("Error fetching data:", error);
     }
@@ -29,7 +34,11 @@ const CovidTracker = () => {
 
   const showStateFilter = () => {
     return (
-      <select value={selectedState} onChange={handleStateChange}>
+      <select
+        className="mt-3"
+        value={selectedState}
+        onChange={handleStateChange}
+      >
         {Object.keys(stateAbbreviations).map((item) => {
           return <option value={stateAbbreviations[item]}>{item}</option>;
         })}
@@ -37,64 +46,58 @@ const CovidTracker = () => {
     );
   };
 
-  const formatDate = (date) => {
-    const dateObj = new Date(
-      date.slice(0, 4),
-      date[4] + date[5] - 1,
-      date[6] + date[7]
-    );
-
-    const adjustedMonth = dateObj.getMonth() + 1;
-
-    const labelDate =
-      adjustedMonth + "/" + dateObj.getDate() + "/" + dateObj.getFullYear();
-    return labelDate;
+  const onFormSubmit = (e) => {
+    e.preventDefault();
+    console.log(days);
+    fetchData();
   };
-
-  const formatChartData = (caseType) => {
-    const labels = data.map((item) => formatDate(item.date.toString()));
-
-    console.log(
-      data.map((item) =>
-        caseType === "Positive" ? item.positiveIncrease : item.negativeIncrease
-      )
-    );
-    const chartData = {
-      labels: labels,
-      datasets: [
-        {
-          label: "Daily Rise of numbers in Covid-19 patients",
-          data: data.map((item) => item.positiveIncrease),
-          fill: true,
-          backgroundColor: "rgba(75,192,192,0.2)",
-          borderColor: "rgb(75, 192, 192)",
-          tension: 0.1,
-        },
-        {
-          label: "Daily Fall of numbers in Covid-19 patients",
-          data: data.map((item) => item.negativeIncrease),
-          fill: false,
-          backgroundColor: "rgba(75,192,192,0.2)",
-          borderColor: "#742774",
-          tension: 0.1,
-        },
-      ],
-    };
-
-    return chartData;
-  };
-
-  // const chart_data = formatChartData();
 
   return (
-    <div>
-      <h1>COVID Cases in {selectedState.toLocaleUpperCase()}</h1>
+    <div className="container">
+      <h3 className="mt-3">
+        COVID Cases in {selectedState.toLocaleUpperCase()}
+      </h3>
 
       {showStateFilter()}
+      <div className="d-flex justify-content-center mt-5">
+        {/* <div className="col-8"> */}
+        <Form onSubmit={onFormSubmit}>
+          <div className="row">
+            <div className="col-12">
+              <Form.Group className="col-7 mb-3" controlId="formBasicEmail">
+                <div className="row">
+                  <div className="col-6">
+                    <Form.Label>
+                      Until how many days you want to see data?{" "}
+                    </Form.Label>
+                  </div>
+                  <div className="col-3">
+                    <Form.Control
+                      type="number"
+                      placeholder="Eg - 5,10,15,20"
+                      onChange={(e) => setDays(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-3">
+                    <Button variant="primary" type="submit">
+                      Submit
+                    </Button>
+                  </div>
+                </div>
+                <Form.Text className="text-muted">
+                  You can see the data till March 7th 2021. By default you will
+                  see result of past 10 days from March 7th 2021
+                </Form.Text>
+              </Form.Group>
+            </div>
+          </div>
+        </Form>
+        {/* </div> */}
+      </div>
 
       <div className="row d-flex justify-content-center mt-3">
         <div className="col-6">
-          <Line data={formatChartData("Positive")} />
+          <Line data={getChartData(data)} />
         </div>
       </div>
     </div>
